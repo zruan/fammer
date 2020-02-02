@@ -7,11 +7,13 @@ import math
 import os
 import subprocess
 import tempfile
-from cStringIO import StringIO
+from io import StringIO
+#from cStringIO import StringIO
 
 import networkx
 
-from Bio import SeqIO
+from Bio import SeqIO, AlignIO
+from Bio.Align import MultipleSeqAlignment
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
@@ -40,9 +42,9 @@ def align_structs(pdb_fnames, seed_fnames=None):
                     if not os.path.isfile(fname):
                         logging.warning("Missing file: %s", fname)
                 raise
-            except subprocess.CalledProcessError, exc:
-                raise RuntimeError("TMalign failed (returned %s):\n%s"
-                                   % (exc.returncode, exc.output))
+            #except subprocess.CalledProcessError, exc:
+            #    raise RuntimeError("TMalign failed (returned %s):\n%s"
+            #                       % (exc.returncode, exc.output))
             tm_seqpair = read_tmalign_as_seqrec_pair(tm_output,
                                                      ref_pdbfn, eqv_pdbfn)
             allpairs.append(tm_seqpair)
@@ -54,32 +56,30 @@ def align_structs(pdb_fnames, seed_fnames=None):
 
     # 2. Resolve MST pairs & write seed tempfiles
     tmp_seed_fnames = []
-    for seedpair in mst_pairs(allpairs):
+    allpairs_dict = {(i[0].id, i[1].id): i for i in allpairs}
+    for seedpairid in mst_pairs(allpairs):
+        seedpair = allpairs_dict[seedpairid]
         # fd, seedfn = tempfile.mkstemp(text=True)
         # SeqIO.write(seedpair, seedfn, 'fasta')
         # SeqIO.write(seedpair, os.fdopen(fd), 'fasta')
         with tempfile.NamedTemporaryFile('w+', delete=False) as handle:
-            SeqIO.write(seedpair, handle, 'fasta')
+            SeqIO.write([seedpair[0], seedpair[1]], handle, 'fasta')
+            #AlignIO.write(MultipleSeqAlignment(seedpair), handle, 'fasta')
             tmp_seed_fnames.append(handle.name)
 
     # 3. Use MAFFT to combine TMalign'd pairs into a multiple alignment;
     seq_fd, seq_fname = tempfile.mkstemp(text=True)
     # Create a blank file to appease MAFFT
-    os.write(seq_fd, '')
+    os.write(seq_fd, b'')
     os.close(seq_fd)
-    mafft_output = subprocess.check_output(['mafft',
-        '--quiet', '--amino', '--localpair',
-        '--maxiterate', '1000']
-        + list(itertools.chain(*[('--seed', sfn)
-                                 for sfn in (seed_fnames or []) + tmp_seed_fnames]))
-        + [seq_fname])
+    mafft_output = subprocess.check_output(['mafft', '--quiet', '--amino', '--localpair', '--maxiterate', '1000'] + list(itertools.chain(*[('--seed', sfn) for sfn in (seed_fnames or []) + tmp_seed_fnames])) + [seq_fname])
     # Clean up
     os.remove(seq_fname)
     for sfn in tmp_seed_fnames:
         os.remove(sfn)
 
     # 4. Emit the aligned sequences
-    recs = SeqIO.parse(StringIO(mafft_output), 'fasta')
+    recs = SeqIO.parse(StringIO(mafft_output.decode("utf-8")), 'fasta')
     recs = clean_and_dedupe_seqs(recs)
     recs = alnutils.remove_empty_cols(recs)
     recs = purge_seqs(recs)
@@ -93,20 +93,16 @@ def read_tmalign_as_seqrec_pair(tm_output, ref_id, eqv_id):
     # Take the mean of the (two) given TM-scores -- not sure which is reference
     tmscores = []
     for line in lines:
+        line = str(line)
         if line.startswith('TM-score'):
             # TMalign v. 2012/05/07 or earlier
             tmscores.append(float(line.split(None, 2)[1]))
         elif 'TM-score=' in line:
             # TMalign v. 2013/05/11 or so
-            tokens = line.split()
-            for token in tokens:
-                if token.startswith('TM-score='):
-                    _key, _val = token.split('=')
-                    tmscores.append(float(_val.rstrip(',')))
-                    break
+            tmscores.append(float(line.split(None, 2)[1]))
     tmscore = math.fsum(tmscores) / len(tmscores)
     # Extract the sequence alignment
-    lastlines = lines[-5:]
+    lastlines = [i.decode("utf-8") for i in lines[-5:]]
     assert lastlines[0].startswith('(":"') # (":" denotes the residues pairs
     assert not lastlines[-1].strip()
     refseq, eqvseq = lastlines[1].strip(), lastlines[3].strip()
@@ -129,7 +125,7 @@ def mst_pairs(pairs):
     """
     G = networkx.Graph()
     for left, right, score in pairs:
-        G.add_edge(left, right, weight=1.0/score)
+        G.add_edge(left.id, right.id, weight=1.0/score)
     mst = networkx.minimum_spanning_edges(G, data=False)
     return list(mst)
 

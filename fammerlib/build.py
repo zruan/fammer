@@ -354,14 +354,14 @@ def align_profiles(task, use_pdb=None):
         sh("cat %s > %s" % (' '.join(singles), famfa))
     if seeds:
         # Align the families with the groups
-        sh("mafft --quiet --amino --globalgenafpair --maxiterate 1000 %s %s > %s"
+        sh("mafft --quiet --amino --maxiterate 1000 %s %s > %s"
            % (' '.join(['--seed '+s for s in seeds]), famfa, allseq))
         # XXX fast version
         # sh("mafft --quiet --amino --auto %s %s > %s"
         #    % (' '.join(['--seed '+s for s in seeds]), famfa, allseq))
     else:
         # No group profiles -- just align the families
-        sh("mafft --quiet --amino --globalgenafpair --maxiterate 1000 %s > %s"
+        sh("mafft --quiet --amino --maxiterate 1000 %s > %s"
                 % (famfa, allseq))
     # Convert FASTA to "pressed" (single-row) Clustal
     records = [rec for rec in SeqIO.parse(allseq, 'fasta')

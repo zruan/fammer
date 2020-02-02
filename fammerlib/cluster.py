@@ -18,7 +18,7 @@ import math
 import os.path
 import subprocess
 import tempfile
-from cStringIO import StringIO
+from io import StringIO
 
 from Bio import AlignIO, SeqIO, Phylo
 from Bio.Phylo.BaseTree import BranchColor

@@ -8,7 +8,7 @@ def ext(path, extension):
     """Replace the extension on a path (or iterable of paths)."""
     if isinstance(path, Task):
         return ext(path.target, extension)
-    if isinstance(path, basestring):
+    if isinstance(path, str):
         return path.rsplit('.', 1)[0] + '.' + extension
     return [ext(p, extension) for p in path]
 
@@ -17,7 +17,7 @@ def noext(path):
     """Replace the extension on a path (or iterable of paths)."""
     if isinstance(path, Task):
         return noext(path.target)
-    if isinstance(path, basestring):
+    if isinstance(path, str):
         return path.rsplit('.', 1)[0]
     return [noext(p) for p in path]
 
@@ -30,9 +30,9 @@ def sh(cmd):
         # NB: Not sure what could trigger this; check_output eats most errors
         logging.warning("*** Failed command: %s", str(cmd))
         raise
-    except subprocess.CalledProcessError, exc:
-        raise RuntimeError("Failed command (returned %s):\n%s\n\n%s"
-                           % (exc.returncode, str(cmd), exc.output))
+    #except subprocess.CalledProcessError, exc:
+    #    raise RuntimeError("Failed command (returned %s):\n%s\n\n%s"
+    #                       #% (exc.returncode, str(cmd), exc.output))
 
 
 def which(exenames):
@@ -81,7 +81,7 @@ class Task(object):
     def _enlist(x):
         if not x:
             return []
-        if isinstance(x, Task) or isinstance(x, basestring):
+        if isinstance(x, Task) or isinstance(x, str):
             return [x]
         return list(x)
 

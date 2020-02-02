@@ -73,7 +73,7 @@ def write_summary(scanhits):
     for profname, count in sorted(profcounts.iteritems(),
             # sort by decreasing count, then alphabetically
             key=lambda pair: (-pair[1], pair[0])):
-        print profname.ljust(max_width), ':', count
+        print(profname.ljust(max_width), ':', count)
 
 
 def write_table(scanhits):
@@ -86,7 +86,7 @@ def write_table(scanhits):
     # [sequence id] \t [profile name] \t [e-value] \t [description...]
     for seqname, data in sorted(scanhits.iteritems()):
         profname, score = data
-        print "%s\t%s" % (seqname, profname)
+        print("%s\t%s" % (seqname, profname))
 
 
 def write_seqout(scanhits, sourcefname, outfname):
